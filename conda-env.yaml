@@ -1,0 +1,11 @@
+name: eco2018-textsnake-pytorch
+channels:
+  - defaults
+  - anaconda
+  - conda-forge
+dependencies:
+  - pytorch
+  - matplotlib
+  - opencv
+  - torchvision
+prefix: ~/.conda/envs/eco2018-textsnake-pytorch

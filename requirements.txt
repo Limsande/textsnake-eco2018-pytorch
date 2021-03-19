@@ -1,0 +1,7 @@
+pytorch
+opencv-python
+torchvision
+matplotlib
+
+numpy~=1.20.1
+pillow~=8.1.2
