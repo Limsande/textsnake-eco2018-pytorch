@@ -1,3 +1,4 @@
+import pathlib
 from argparse import ArgumentParser
 
 import torch
@@ -40,6 +41,12 @@ def get_args_parser() -> ArgumentParser:
         metavar='N',
         default=1,
         help='Evaluate model after each N epochs (default 1)'
+    )
+    parser.add_argument(
+        '--resume',
+        type=pathlib.Path,
+        metavar='FILE',
+        help='Resume training at checkpoint loaded from FILE'
     )
 
     return parser

@@ -47,11 +47,14 @@ def evaluate(model, val_loader):
     return avg_loss
 
 
-def fit(model, train_loader, val_loader, n_epochs, optimizer):
+def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, best_val_loss=np.inf):
     """Fits model to given data"""
 
+    # Save training checkpoints here
+    checkpoint_file = f'{output_dir}/checkpoint.pth'
+
     # Prepare csv file for logging the loss
-    loss_file = f'./{output_dir}/loss.csv'
+    loss_file = f'{output_dir}/loss.csv'
     try:
         with open(loss_file, 'w') as f:
             f.write('Epoch;Train_loss;Val_loss')
@@ -61,7 +64,8 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer):
     to_device(model, get_device())
 
     # This is the training process
-    for epoch in range(n_epochs):
+    max_epoch = start_epoch + n_epochs
+    for epoch in range(start_epoch, max_epoch):
 
         # Put model into training mode
         model.train()
@@ -71,19 +75,31 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer):
             maps = torch.stack(maps, dim=1)
             train_loss = for_and_backward(model, batch, maps, optimizer)
 
-        # Evaluate if we hit the validation interval
-        # or if this was the last epoch
-        val_loss = None
-        if epoch % args.val_interval == 0 or epoch == args.n_epochs - 1:
+        # Evaluate and persist the training progress if we hit
+        # the validation interval or if this was the last epoch,
+        # and if the current val_loss is better than the best
+        # val_loss from all prior epochs
+        if epoch % args.val_interval == 0 or epoch == max_epoch - 1:
             # Put model into evaluation mode
             model.eval()
             # Run evaluation
             val_loss = evaluate(model, val_loader)
 
-        if val_loss:
-            print(f'Epoch {epoch}: Train loss={train_loss}; Val loss={val_loss}')
+            print(f'Epoch {epoch + 1}: Train loss={train_loss}; Val loss={val_loss}')
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+
+                torch.save({
+                    'epoch': epoch + 1,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'best_val_loss': best_val_loss
+                }, checkpoint_file)
+
+                print(f'Saved checkpoint in {checkpoint_file}')
         else:
-            print(f'Epoch {epoch}: Train loss={train_loss}')
+            print(f'Epoch {epoch + 1}: Train loss={train_loss}')
 
         try:
             with open(loss_file, 'a') as f:
@@ -138,6 +154,10 @@ def make_output_dir_name():
     current time and script arguments"""
     prefix = datetime.now().strftime('%Y%m%d-%H%M')
     dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
+    if args.resume:
+        # Extract date prefix from checkpoint path:
+        # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
+        dir_name += f'_resume={str(args.resume.parent.name).split("_")[0]}'
     return dir_name
 
 
@@ -165,10 +185,30 @@ if __name__ == '__main__':
         DataLoader(Eco2018(data_root=data_root, transformations=val_transforms, is_training=False)))
 
     model = Textnet()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    start_epoch = 0
+    best_val_loss = np.inf
+
+    # Load training checkpoint from file, if requested
+    if args.resume:
+        checkpoint = torch.load(args.resume)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch']
+        best_val_loss = checkpoint['best_val_loss']
+        print(f'Successfully loaded training state from {args.resume}:')
+        print(f'  trained epochs: {start_epoch}')
+        print(f'  best val_loss: {best_val_loss}')
+
     # for batch, *maps in train_loader:
     #     out = model(batch)
     #     print(out.shape)
     #     break
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    fit(model, train_loader, val_loader, n_epochs=args.epochs, optimizer=optimizer)
+    fit(model,
+        train_loader,
+        val_loader,
+        n_epochs=args.epochs,
+        optimizer=optimizer,
+        start_epoch=start_epoch,
+        best_val_loss=best_val_loss)
