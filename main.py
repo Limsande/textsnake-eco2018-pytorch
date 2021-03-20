@@ -1,3 +1,7 @@
+import os
+import sys
+from datetime import datetime
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -46,6 +50,14 @@ def evaluate(model, val_loader):
 def fit(model, train_loader, val_loader, n_epochs, optimizer):
     """Fits model to given data"""
 
+    # Prepare csv file for logging the loss
+    loss_file = f'./{output_dir}/loss.csv'
+    try:
+        with open(loss_file, 'w') as f:
+            f.write('Epoch;Train_loss;Val_loss')
+    except IOError as e:
+        print(f'[WARNING] Could not create loss file {loss_file}:', e, file=sys.stderr)
+
     to_device(model, get_device())
 
     # This is the training process
@@ -72,6 +84,12 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer):
             print(f'Epoch {epoch}: Train loss={train_loss}; Val loss={val_loss}')
         else:
             print(f'Epoch {epoch}: Train loss={train_loss}')
+
+        try:
+            with open(loss_file, 'a') as f:
+                f.write(f'\n{epoch};{train_loss};{val_loss}')
+        except IOError as e:
+            print(f'[WARNING] Could not write to loss file:', e, file=sys.stderr)
 
 
 def loss_fn(prediction, maps):
@@ -115,8 +133,23 @@ def loss_fn(prediction, maps):
     return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
 
 
+def make_output_dir_name():
+    """Constructs a unique name for a directory in ./output using
+    current time and script arguments"""
+    prefix = datetime.now().strftime('%Y%m%d-%H%M')
+    dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
+    return dir_name
+
+
 if __name__ == '__main__':
     args = get_args_parser().parse_args()
+
+    # Create output directory if it doesn't exist
+    output_dir = make_output_dir_name()
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except IOError as e:
+        sys.exit(f'[ERROR] Could not create output directory: {e}')
 
     print(get_device())
 
