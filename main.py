@@ -111,30 +111,27 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
 def loss_fn(prediction, maps):
     # TODO Online hard negative mining for tr_loss
 
-    # TODO tcl_loss only inside tr
+    tr_pred = prediction[:, :2]
+    tr_true = maps[:, 0]
+    tcl_pred = prediction[:, 2:4]
+    tcl_true = maps[:, 1]
 
-    tr_logits = prediction[:, :2]
-    tr_pred = tr_logits
+    # tcl_loss only takes pixels inside text region into account
+    tcl_pred_inside_tr = torch.where(tr_true > 0, tcl_pred, tr_true)
 
-    tcl_logits = prediction[:, 2:4]
-    tcl_pred = tcl_logits
-
-    # TODO move type cast somewhere better
-    tr_true = maps[:, 0].long()
-    tcl_true = maps[:, 1].long()
-
-    r_pred = prediction[:, 4]
+    # Geometry loss only takes pixels inside tcl into account
+    r_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 4], tcl_true)
     r_true = maps[:, 2]
-    cos_pred = prediction[:, 5]
+    cos_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 5], tcl_true)
     cos_true = maps[:, 3]
-    sin_pred = prediction[:, 6]
+    sin_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 6], tcl_true)
     sin_true = maps[:, 4]
 
-    tr_loss = F.cross_entropy(tr_pred, tr_true)
-    tcl_loss = F.cross_entropy(tcl_pred, tcl_true)
-    radii_loss = F.smooth_l1_loss(r_pred, r_true)
-    sin_loss = F.smooth_l1_loss(sin_pred, sin_true)
-    cos_loss = F.smooth_l1_loss(cos_pred, cos_true)
+    tr_loss = F.cross_entropy(tr_pred, tr_true.long())
+    tcl_loss = F.cross_entropy(tcl_pred_inside_tr, tcl_true.long())
+    radii_loss = F.smooth_l1_loss(r_pred_inside_tcl, r_true)
+    sin_loss = F.smooth_l1_loss(sin_pred_inside_tcl, sin_true)
+    cos_loss = F.smooth_l1_loss(cos_pred_inside_tcl, cos_true)
 
     return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
 
