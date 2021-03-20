@@ -71,8 +71,6 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
         model.train()
         # Train one epoch
         for batch, *maps in train_loader:
-            # TODO stack necessary?
-            maps = torch.stack(maps, dim=1)
             train_loss = for_and_backward(model, batch, maps, optimizer)
 
         # Evaluate and persist the training progress if we hit
@@ -112,20 +110,20 @@ def loss_fn(prediction, maps):
     # TODO Online hard negative mining for tr_loss
 
     tr_pred = prediction[:, :2]
-    tr_true = maps[:, 0]
+    tr_true = maps[0]
     tcl_pred = prediction[:, 2:4]
-    tcl_true = maps[:, 1]
+    tcl_true = maps[1]
 
     # tcl_loss only takes pixels inside text region into account
     tcl_pred_inside_tr = torch.where(tr_true > 0, tcl_pred, tr_true)
 
     # Geometry loss only takes pixels inside tcl into account
     r_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 4], tcl_true)
-    r_true = maps[:, 2]
+    r_true = maps[2]
     cos_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 5], tcl_true)
-    cos_true = maps[:, 3]
+    cos_true = maps[3]
     sin_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 6], tcl_true)
-    sin_true = maps[:, 4]
+    sin_true = maps[4]
 
     tr_loss = F.cross_entropy(tr_pred, tr_true.long())
     tcl_loss = F.cross_entropy(tcl_pred_inside_tr, tcl_true.long())
