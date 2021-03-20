@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from augmentation.augmentation import RootAugmentation, RootBaseTransform
 from dataloader.Eco2018Loader import DeviceLoader, Eco2018
 from model.Textnet import Textnet
-from utils import get_device, to_device
+from utils import get_device, to_device, get_args_parser
 
 
 def for_and_backward(model, batch, maps, optimizer):
@@ -59,12 +59,19 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer):
             maps = torch.stack(maps, dim=1)
             train_loss = for_and_backward(model, batch, maps, optimizer)
 
-        # Put model into evaluation mode
-        model.eval()
-        # Run evaluation
-        val_loss = evaluate(model, val_loader)
+        # Evaluate if we hit the validation interval
+        # or if this was the last epoch
+        val_loss = None
+        if epoch % args.val_interval == 0 or epoch == args.n_epochs - 1:
+            # Put model into evaluation mode
+            model.eval()
+            # Run evaluation
+            val_loss = evaluate(model, val_loader)
 
-        print(f'Epoch {epoch}: Train loss={train_loss}; Val loss={val_loss}')
+        if val_loss:
+            print(f'Epoch {epoch}: Train loss={train_loss}; Val loss={val_loss}')
+        else:
+            print(f'Epoch {epoch}: Train loss={train_loss}')
 
 
 def loss_fn(prediction, maps):
@@ -109,6 +116,8 @@ def loss_fn(prediction, maps):
 
 
 if __name__ == '__main__':
+    args = get_args_parser().parse_args()
+
     print(get_device())
 
     means = (77.125, 69.661, 65.885)
@@ -128,6 +137,5 @@ if __name__ == '__main__':
     #     print(out.shape)
     #     break
 
-    lr = 0.005
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    fit(model, train_loader, val_loader, n_epochs=1, optimizer=optimizer)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    fit(model, train_loader, val_loader, n_epochs=args.epochs, optimizer=optimizer)
