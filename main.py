@@ -168,11 +168,10 @@ if __name__ == '__main__':
     train_transforms = RootAugmentation(mean=means, std=stds)
     val_transforms = RootBaseTransform(mean=means, std=stds)
 
-    data_root = 'data/Eco2018-Test'
     train_loader = DeviceLoader(
-        DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=args.batch_size))
+        DataLoader(Eco2018(transformations=train_transforms), shuffle=True, batch_size=args.batch_size))
     val_loader = DeviceLoader(
-        DataLoader(Eco2018(data_root=data_root, transformations=val_transforms, is_training=False)))
+        DataLoader(Eco2018(transformations=val_transforms, is_training=False)))
 
     model = Textnet()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
