@@ -10,13 +10,14 @@ class VGG16Backbone(nn.Module):
 
         # Get pretrained VGG16 from PyTorch's GitHub repo,
         # see https://pytorch.org/hub/pytorch_vision_vgg/
-        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg11', pretrained=True)
+        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16', pretrained=True)
 
-        self.stage1 = nn.Sequential(*[vgg16.features[i] for i in range(3)])
-        self.stage2 = nn.Sequential(*[vgg16.features[i] for i in range(3, 6)])
-        self.stage3 = nn.Sequential(*[vgg16.features[i] for i in range(6, 11)])
-        self.stage4 = nn.Sequential(*[vgg16.features[i] for i in range(11, 16)])
-        self.stage5 = nn.Sequential(*[vgg16.features[i] for i in range(16, 21)])
+        # Extract the five convolutional layers from vgg16 as our backbone
+        self.stage1 = nn.Sequential(*[vgg16.features[i] for i in range(5)])
+        self.stage2 = nn.Sequential(*[vgg16.features[i] for i in range(5, 10)])
+        self.stage3 = nn.Sequential(*[vgg16.features[i] for i in range(10, 17)])
+        self.stage4 = nn.Sequential(*[vgg16.features[i] for i in range(17, 24)])
+        self.stage5 = nn.Sequential(*[vgg16.features[i] for i in range(24, 31)])
 
     def forward(self, x):
         f1 = self.stage1(x)
@@ -115,3 +116,23 @@ class Textnet(nn.Module):
         #output[:, 5] = None  # cosine
         #output[:, 6] = None  # sine
         return output
+
+
+if __name__ == '__main__':
+    from torch.utils.data import DataLoader
+    from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+
+    means = (77.125, 69.661, 65.885)
+    stds = (9.664, 8.175, 7.810)
+    from augmentation.augmentation import RootAugmentation
+    train_transforms = RootAugmentation(mean=means, std=stds)
+
+    model = Textnet()
+    data_root = '../data/Eco2018-Test'
+    train_loader = DeviceLoader(
+        DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=1))
+
+    for batch, *_ in train_loader:
+        output = model(batch)
+        print(output.shape)
+        break
