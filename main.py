@@ -170,7 +170,7 @@ if __name__ == '__main__':
 
     data_root = 'data/Eco2018-Test'
     train_loader = DeviceLoader(
-        DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=1))
+        DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=args.batch_size))
     val_loader = DeviceLoader(
         DataLoader(Eco2018(data_root=data_root, transformations=val_transforms, is_training=False)))
 

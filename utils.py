@@ -36,6 +36,13 @@ def get_args_parser() -> ArgumentParser:
         help='Number of epochs'
     )
     parser.add_argument(
+        '--batch-size',
+        type=int,
+        metavar='N',
+        default=1,
+        help='Batch size (default 1)'
+    )
+    parser.add_argument(
         '--val-interval',
         type=int,
         metavar='N',
