@@ -107,14 +107,19 @@ class Textnet(nn.Module):
         h5_deconv = self._final_deconv(h5)
         pseudo_predictions = self._predict(h5_deconv)
 
+        # final output manipulation: softmax on text regions and
+        # center lines, regularize sine and cosine
         output = torch.zeros_like(pseudo_predictions)
-        output[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)  # text region
-        output[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)  # text center line
+        output[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)  # text regions
+        output[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)  # text center lines
 
-        # TODO regularizing cosθ and sinθ so that the squared sum equals 1
-        #output[:, 4] = None  # radii
-        #output[:, 5] = None  # cosine
-        #output[:, 6] = None  # sine
+        output[:, 4] = pseudo_predictions[:, 4]  # radii
+
+        # regularizing cosθ and sinθ so that the squared sum equals 1
+        scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
+        output[:, 5] = pseudo_predictions[:, 5] * scale  # cosine
+        output[:, 6] = pseudo_predictions[:, 6] * scale  # sine
+
         return output
 
 
