@@ -10,8 +10,7 @@ class VGG16Backbone(nn.Module):
 
         # Get pretrained VGG16 from PyTorch's GitHub repo,
         # see https://pytorch.org/hub/pytorch_vision_vgg/
-        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg11',
-                               pretrained=True)
+        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg11', pretrained=True)
 
         self.stage1 = nn.Sequential(*[vgg16.features[i] for i in range(3)])
         self.stage2 = nn.Sequential(*[vgg16.features[i] for i in range(3, 6)])

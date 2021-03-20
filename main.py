@@ -113,24 +113,14 @@ def loss_fn(prediction, maps):
 
     # TODO tcl_loss only inside tr
 
-    # TODO tr and tcl are probs along dim 1
     tr_logits = prediction[:, :2]
-    #tr_pred = (tr_logits[:, 1] > tr_logits[:, 0]).float()
     tr_pred = tr_logits
 
-    # NxHxW --> Nx(H*W)
-    #tr_pred = tr_pred.view((tr_pred.shape[0], tr_pred.shape[1] * tr_pred.shape[2]))
-    #tr_true = maps[:, 0].view((maps[:, 0].shape[0], maps[:, 0].shape[1] * maps[:, 0].shape[2]))
-    # TODO move type cast somewhere better
-    tr_true = maps[:, 0].long()
-
     tcl_logits = prediction[:, 2:4]
-    #tcl_pred = (tcl_logits[:, 1] > tcl_logits[:, 0]).float()
     tcl_pred = tcl_logits
 
-    # NxHxW --> Nx(H*W)
-    #tcl_pred = tcl_pred.view((tcl_pred.shape[0], tcl_pred.shape[1] * tcl_pred.shape[2]))
-    #tcl_true = maps[:, 1].view((maps[:, 1].shape[0], maps[:, 1].shape[1] * maps[:, 1].shape[2]))
+    # TODO move type cast somewhere better
+    tr_true = maps[:, 0].long()
     tcl_true = maps[:, 1].long()
 
     r_pred = prediction[:, 4]
@@ -171,7 +161,7 @@ if __name__ == '__main__':
     except IOError as e:
         sys.exit(f'[ERROR] Could not create output directory: {e}')
 
-    print(get_device())
+    print('Running on device:', get_device())
 
     means = (77.125, 69.661, 65.885)
     stds = (9.664, 8.175, 7.810)
@@ -199,11 +189,6 @@ if __name__ == '__main__':
         print(f'Successfully loaded training state from {args.resume}:')
         print(f'  trained epochs: {start_epoch}')
         print(f'  best val_loss: {best_val_loss}')
-
-    # for batch, *maps in train_loader:
-    #     out = model(batch)
-    #     print(out.shape)
-    #     break
 
     fit(model,
         train_loader,
