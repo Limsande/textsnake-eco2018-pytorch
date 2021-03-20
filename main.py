@@ -37,7 +37,7 @@ def forward(model, batch, maps):
 
 def evaluate(model, val_loader):
     """Calculates average loss on the validation set"""
-    results = [forward(model, batch, torch.stack(maps, dim=1)) for batch, *maps in val_loader]
+    results = [forward(model, batch, maps) for batch, *maps in val_loader]
     losses = [val[0] for val in results]
     batch_sizes = [val[1] for val in results]
 
@@ -110,9 +110,9 @@ def loss_fn(prediction, maps):
     # TODO Online hard negative mining for tr_loss
 
     tr_pred = prediction[:, :2]
-    tr_true = maps[0]
+    tr_true = maps[0].float()
     tcl_pred = prediction[:, 2:4]
-    tcl_true = maps[1]
+    tcl_true = maps[1].float()
 
     # tcl_loss only takes pixels inside text region into account
     tcl_pred_inside_tr = torch.where(tr_true > 0, tcl_pred, tr_true)
