@@ -1,8 +1,6 @@
 import os
 
-import cv2 as cv
 import numpy as np
-import torch
 import torch.utils.data as data
 from PIL import Image
 
@@ -15,70 +13,6 @@ def pil_load_img(path):
     return image
 
 
-class RootInstance(object):
-    """
-    Represents a single root as a polygon.
-    """
-
-    def __init__(self, points: np.array):
-        """
-        :param points: Nx2 numpy array, where N is number of points
-            in this root (i.e. polygon)
-        """
-        remove_points = []
-
-        # Try to reduce number of points in this polygon without
-        # loosing to much information.
-        if len(points) > 4:
-            # remove point if area is almost unchanged after removing it
-            ori_area = cv.contourArea(points)
-            for p in range(len(points)):
-                # attempt to remove p
-                index = list(range(len(points)))
-                index.remove(p)
-                area = cv.contourArea(points[index])
-                if np.abs(ori_area - area) / ori_area < 0.017 and len(
-                        points) - len(remove_points) > 4:
-                    remove_points.append(p)
-            self.points = np.array([point for i, point in enumerate(points) if
-                                    i not in remove_points])
-        else:
-            self.points = np.array(points)
-
-        self.length = len(self.points)
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    def __getitem__(self, item):
-        return getattr(self, item)
-
-
-def roots_to_polygons(annotation_mask) -> [RootInstance]:
-    """
-    Extracts roots as polygons from binary annotation mask.
-    """
-
-    # With given options, cv.findContours() only supports uint8 input.
-    if annotation_mask.dtype is not np.uint8:
-        annotation_mask = annotation_mask * 255
-        annotation_mask = annotation_mask.astype(np.uint8)
-
-    # Retrieval mode = cv.RETR_EXTERNAL: find outer contours only,
-    # no hierarchy established;
-    # Contour approximation method = cv.CHAIN_APPROX_SIMPLE: do not
-    # store *every* point on the contour, only important ones
-    contours, _ = cv.findContours(annotation_mask, cv.RETR_EXTERNAL,
-                                  cv.CHAIN_APPROX_SIMPLE)
-
-    # list of contours, each is a Nx1x2 numpy array,
-    # where N is number of points. Remove intermediate
-    # dimension of length 1
-    contours = [RootInstance(points=c.squeeze()) for c in contours]
-
-    return contours
-
-
 class RootDataset(data.Dataset):
     """
     Only  implements some basic preparations to put images into the neural net.
@@ -87,47 +21,33 @@ class RootDataset(data.Dataset):
     augmentation.
     """
 
+    def __getitem__(self, index):
+        raise NotImplementedError()
+
     def __init__(self):
         super().__init__()
 
-    def get_training_data(self, img_and_masks, polygons, image_id, image_path):
+    def get_training_data(self, img_and_masks):
         """
         Prepares meta data the network needs for training.
 
         :param img_and_masks: dictionary with input image and one mask per TextSnake input
-        :param polygons: list of RootInstance objects defining the roots in this img_and_masks['img']
         """
 
         img_height, img_width, _ = img_and_masks['img'].shape
 
-        # train_mask = self.make_text_region(image, polygons)
-        # Extracted from make_text_region. No idea what this is for
-        train_mask = np.ones(img_and_masks['img'].shape[:2], np.uint8)
-
         # to pytorch channel sequence
         img_and_masks['img'] = img_and_masks['img'].transpose(2, 0, 1)
 
-        # max_annotation = max #polygons per image
-        # max_points = max #points per polygons
-        max_points = max([p.length for p in polygons])
-        max_annotation = 200
-        all_possible_points_for_each_possible_polygon = np.zeros(
-            (max_annotation, max_points, 2))
-        n_points_per_polygon = np.zeros(max_annotation, dtype=int)
-        for i, polygon in enumerate(polygons):
-            # polygon.length = #points in this polygon
-            all_possible_points_for_each_possible_polygon[i,
-            :polygon.length] = polygon.points
-            n_points_per_polygon[i] = polygon.length
-
         # All input images are uint8. Do some type conversions
         # to match expected model input:
-        #   Train mask: uint8, 0 or 1
+        #   Image: float32
         #   Root mask: uint8, 0 or 1
         #   Center line mask: uint8, 0 or 1
         #   Radius map: float32
         #   Sin map: float32, -1.0 to 1.0
         #   Cos map: float32, -1.0 to 1.0
+
         for mask in [img_and_masks['roots'], img_and_masks['centerlines']]:
             if mask.max() > 1:
                 # Store result of array division in int array
@@ -135,30 +55,17 @@ class RootDataset(data.Dataset):
                 # See https://github.com/numpy/numpy/issues/17221
                 np.divide(mask, 255, out=mask, casting='unsafe')
 
-        # PyTorch expects float tensors as input
         img_and_masks['img'] = img_and_masks['img'].astype(np.float32)
-
         img_and_masks['radii'] = img_and_masks['radii'].astype(np.float32)
 
-        # Map [0, 255] to [-1, 1]
+        # Map [0, 255] int to [-1, 1] float
         for key in ['sin', 'cos']:
             map = img_and_masks[key].astype(np.float32)
             map -= 255 / 2  # [0, 255] -> [-127.5, 127.5]
             map /= 255 / 2  # [-127.5, 127.5] -> [-1, 1]
             img_and_masks[key] = map
 
-        meta = {
-            'image_id': image_id,
-            'image_path': image_path,
-            'annotation': all_possible_points_for_each_possible_polygon,
-            'n_annotation': n_points_per_polygon,
-            'Height': img_height,
-            'Width': img_width
-        }
-
-        # return img_and_masks, train_mask, tr_mask, tcl_mask, radius_map, sin_map, cos_map, meta
         return (img_and_masks['img'],
-                #train_mask,
                 img_and_masks['roots'],
                 img_and_masks['centerlines'],
                 img_and_masks['radii'],
@@ -263,17 +170,14 @@ class Eco2018(RootDataset):
         if self.transformations:
             img_and_masks = self.transformations(img_and_masks)
 
-        polygons = roots_to_polygons(img_and_masks['roots'])
-
-        # image, train_mask, tr_mask, tcl_mask, radius_map, sin_map, cos_map, meta
-        return self.get_training_data(img_and_masks, polygons,
-                                      image_id=image_id, image_path=image_path)
+        # image, tr_mask, tcl_mask, radius_map, sin_map, cos_map
+        return self.get_training_data(img_and_masks)
 
     def __len__(self):
         return len(self.image_list)
 
 
-class DeviceLoader():
+class DeviceLoader:
     """
     Thin wrapper around a PyTorch DataLoader moving
     data to the GPU (if available).
