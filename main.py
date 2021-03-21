@@ -159,6 +159,7 @@ def make_output_dir_name():
     current time and script arguments"""
     prefix = datetime.now().strftime('%Y%m%d-%H%M')
     dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
+    dir_name += '_with-pretrained-backbone' if args.pretrained_backbone else '_no-pretrained-backbone'
     if args.resume:
         # Extract date prefix from checkpoint path:
         # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
@@ -217,7 +218,7 @@ if __name__ == '__main__':
             pin_memory=True)
     )
 
-    model = Textnet()
+    model = Textnet(pretrained_backbone=args.pretrained_backbone)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     start_epoch = 0
     best_val_loss = np.inf

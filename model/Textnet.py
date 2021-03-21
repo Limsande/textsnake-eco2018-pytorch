@@ -5,12 +5,12 @@ import torch.nn.functional as F
 
 class VGG16Backbone(nn.Module):
 
-    def __init__(self):
+    def __init__(self, pretrained=False):
         super().__init__()
 
         # Get pretrained VGG16 from PyTorch's GitHub repo,
         # see https://pytorch.org/hub/pytorch_vision_vgg/
-        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16', pretrained=True)
+        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16', pretrained=pretrained)
 
         # Extract the five convolutional layers from vgg16 as our backbone
         self.stage1 = nn.Sequential(*[vgg16.features[i] for i in range(5)])
@@ -64,9 +64,9 @@ class DeconvAndMerge(nn.Module):
 
 class Textnet(nn.Module):
 
-    def __init__(self):
+    def __init__(self, pretrained_backbone=False):
         super().__init__()
-        self._backbone = VGG16Backbone()
+        self._backbone = VGG16Backbone(pretrained=pretrained_backbone)
         # f5=h1 and f4 have 512 channels
         self._up1 = DeconvAndMerge(in_channels=512, out_channels=256)
         # f3 has 256 channels, and h2 has 256 channels
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     from augmentation.augmentation import RootAugmentation
     train_transforms = RootAugmentation(mean=means, std=stds)
 
-    model = Textnet()
+    model = Textnet(pretrained_backbone=False)
     data_root = '../data/Eco2018-Test'
     train_loader = DeviceLoader(
         DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=1))

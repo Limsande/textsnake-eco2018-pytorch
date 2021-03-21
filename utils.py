@@ -62,5 +62,10 @@ def get_args_parser() -> ArgumentParser:
         metavar='FILE',
         help='Resume training at checkpoint loaded from FILE'
     )
+    parser.add_argument(
+        '--pretrained-backbone',
+        action='store_true',
+        help='Use as backbone a VGG16 pretrained on ImageNet from the torchvision GitHub repo'
+    )
 
     return parser
