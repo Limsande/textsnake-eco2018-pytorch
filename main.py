@@ -114,10 +114,21 @@ def loss_fn(prediction, maps):
     tcl_pred = prediction[:, 2:4]
     tcl_true = maps[1].float()
 
-    # tcl_loss only takes pixels inside text region into account
-    tcl_pred_inside_tr = torch.where(tr_true > 0, tcl_pred, tr_true)
+    # tcl_loss only takes pixels inside text region into account.
+    # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
+    # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
+    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
+    # but only with the values from tcl_pred, where tr_true is 1. Values outside
+    # the text region are 0.
+    tcl_pred_inside_tr = torch.stack(
+            [
+                torch.where(tr_true > 0, tcl_pred[:, 0], tr_true),
+                torch.where(tr_true > 0, tcl_pred[:, 1], tr_true)
+            ], dim=1)
 
-    # Geometry loss only takes pixels inside tcl into account
+    # Geometry loss only takes pixels inside tcl into account. Use tcl_true as
+    # mask, like tr_true above. But this time, there is only one channel for
+    # radii, sine, and cosine, each. So no need to stack.
     r_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 4], tcl_true)
     r_true = maps[2]
     cos_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 5], tcl_true)
