@@ -65,13 +65,18 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
 
     # This is the training process
     max_epoch = start_epoch + n_epochs
+    start_time = datetime.now()
+    print(start_time.strftime("Started on %a, %d.%m.%Y at %H:%M"))
     for epoch in range(start_epoch, max_epoch):
+        epoch_start_time = datetime.now()
 
         # Put model into training mode
         model.train()
         # Train one epoch
         for batch, *maps in train_loader:
             train_loss = for_and_backward(model, batch, maps, optimizer)
+
+        epoch_elapsed_time = datetime.now() - epoch_start_time
 
         # Evaluate and persist the training progress if we hit
         # the validation interval or if this was the last epoch,
@@ -83,7 +88,8 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
             # Run evaluation
             val_loss = evaluate(model, val_loader)
 
-            print(f'Epoch {epoch + 1}: Train loss={train_loss}; Val loss={val_loss}')
+            print(f'Epoch {epoch + 1}: Train loss={train_loss}; Val loss={val_loss};',
+                  f'Time elapsed in this epoch: {format_elapsed_time(epoch_elapsed_time)}')
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
@@ -104,6 +110,9 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
                 f.write(f'\n{epoch};{train_loss};{val_loss}')
         except IOError as e:
             print(f'[WARNING] Could not write to loss file:', e, file=sys.stderr)
+
+    total_elapsed_time = datetime.now() - start_time
+    print('Total elapsed time:', format_elapsed_time(total_elapsed_time))
 
 
 def loss_fn(prediction, maps):
@@ -155,6 +164,12 @@ def make_output_dir_name():
         # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
         dir_name += f'_resume={str(args.resume.parent.name).split("_")[0]}'
     return dir_name
+
+
+def format_elapsed_time(delta) -> str:
+    # Remove microseconds
+    return str(delta).split('.')[0]
+
 
 
 if __name__ == '__main__':
