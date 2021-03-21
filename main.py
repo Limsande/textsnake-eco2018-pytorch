@@ -171,6 +171,13 @@ def format_elapsed_time(delta) -> str:
     return str(delta).split('.')[0]
 
 
+def print_config_file(output_dir):
+    """Prints current configuration to a file in the output directory"""
+    with open(os.path.join(output_dir, 'config.cfg'), 'w') as f:
+        for k, v in vars(args).items():
+            f.write(f'{k}={v}\n')
+        f.write(f'device={get_device()}')
+
 
 if __name__ == '__main__':
     args = get_args_parser().parse_args()
@@ -181,6 +188,12 @@ if __name__ == '__main__':
         os.makedirs(output_dir, exist_ok=True)
     except IOError as e:
         sys.exit(f'[ERROR] Could not create output directory: {e}')
+
+    # Write configuration to log file
+    try:
+        print_config_file(output_dir)
+    except IOError as e:
+        sys.exit(f'[ERROR] Could not write to output directory: {e}')
 
     print('Running on device:', get_device())
 
