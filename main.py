@@ -175,9 +175,19 @@ if __name__ == '__main__':
     val_transforms = RootBaseTransform(mean=means, std=stds)
 
     train_loader = DeviceLoader(
-        DataLoader(Eco2018(transformations=train_transforms), shuffle=True, batch_size=args.batch_size))
+        DataLoader(
+            Eco2018(transformations=train_transforms),
+            shuffle=True,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
+            pin_memory=True)
+    )
     val_loader = DeviceLoader(
-        DataLoader(Eco2018(transformations=val_transforms, is_training=False)))
+        DataLoader(
+            Eco2018(transformations=val_transforms, is_training=False),
+            num_workers=args.num_workers,
+            pin_memory=True)
+    )
 
     model = Textnet()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

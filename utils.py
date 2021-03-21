@@ -43,6 +43,13 @@ def get_args_parser() -> ArgumentParser:
         help='Batch size (default 1)'
     )
     parser.add_argument(
+        '--num-workers',
+        type=int,
+        metavar='N',
+        default=8,
+        help='Number of processes used to load data'
+    )
+    parser.add_argument(
         '--val-interval',
         type=int,
         metavar='N',
