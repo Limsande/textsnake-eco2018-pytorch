@@ -56,16 +56,18 @@ def get_args_parser() -> ArgumentParser:
         default=1,
         help='Evaluate model after each N epochs (default 1)'
     )
-    parser.add_argument(
+
+    mutually_exclusive = parser.add_mutually_exclusive_group()
+    mutually_exclusive.add_argument(
+        '--pretrain',
+        action='store_true',
+        help='Pretrain one epoch on SynthText dataset'
+    )
+    mutually_exclusive.add_argument(
         '--resume',
         type=pathlib.Path,
         metavar='FILE',
         help='Resume training at checkpoint loaded from FILE'
-    )
-    parser.add_argument(
-        '--pretrained-backbone',
-        action='store_true',
-        help='Use as backbone a VGG16 pretrained on ImageNet from the torchvision GitHub repo'
     )
 
     return parser

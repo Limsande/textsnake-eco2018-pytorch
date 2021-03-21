@@ -132,7 +132,7 @@ if __name__ == '__main__':
     from augmentation.augmentation import RootAugmentation
     train_transforms = RootAugmentation(mean=means, std=stds)
 
-    model = Textnet(pretrained_backbone=False)
+    model = Textnet()
     data_root = '../data/Eco2018-Test'
     train_loader = DeviceLoader(
         DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=1))

@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 
 from augmentation.augmentation import RootAugmentation, RootBaseTransform
 from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+from dataloader.SynthTextLoader import SynthText, Augmentation
 from model.Textnet import Textnet
 from utils import get_device, to_device, get_args_parser
 
@@ -82,7 +83,7 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
         # the validation interval or if this was the last epoch,
         # and if the current val_loss is better than the best
         # val_loss from all prior epochs
-        if epoch % args.val_interval == 0 or epoch == max_epoch - 1:
+        if val_loader and (epoch % args.val_interval == 0 or epoch == max_epoch - 1):
             # Put model into evaluation mode
             model.eval()
             # Run evaluation
@@ -159,7 +160,7 @@ def make_output_dir_name():
     current time and script arguments"""
     prefix = datetime.now().strftime('%Y%m%d-%H%M')
     dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
-    dir_name += '_with-pretrained-backbone' if args.pretrained_backbone else '_no-pretrained-backbone'
+    dir_name += '_pretrain' if args.pretrain else '_no-pretrain'
     if args.resume:
         # Extract date prefix from checkpoint path:
         # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
@@ -218,7 +219,7 @@ if __name__ == '__main__':
             pin_memory=True)
     )
 
-    model = Textnet(pretrained_backbone=args.pretrained_backbone)
+    model = Textnet()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     start_epoch = 0
     best_val_loss = np.inf
@@ -233,6 +234,25 @@ if __name__ == '__main__':
         print(f'Successfully loaded training state from {args.resume}:')
         print(f'  trained epochs: {start_epoch}')
         print(f'  best val_loss: {best_val_loss}')
+
+    if args.pretrain:
+        # TODO mean, std
+        pretrain_loader = DeviceLoader(
+            DataLoader(
+                SynthText(transform=Augmentation((512, 512), None, None)),
+                shuffle=True,
+                batch_size=args.batch_size,
+                num_workers=args.num_workers,
+                pin_memory=True)
+        )
+
+        print('\n--- PRETRAINING ---')
+        fit(model,
+            train_loader,
+            val_loader=None,
+            n_epochs=1,
+            optimizer=optimizer)
+        print('--- /PRETRAINING ---\n')
 
     fit(model,
         train_loader,
