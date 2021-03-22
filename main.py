@@ -27,6 +27,7 @@ def for_and_backward(model, batch, maps, optimizer):
     return loss
 
 
+@torch.no_grad()
 def forward(model, batch, maps):
     """Does one forward step on given batch for validation"""
     prediction = model(batch)
@@ -35,6 +36,7 @@ def forward(model, batch, maps):
     return loss.item(), len(batch)
 
 
+@torch.no_grad()
 def evaluate(model, val_loader):
     """Calculates average loss on the validation set"""
     results = [forward(model, batch, maps) for batch, *maps in val_loader]
