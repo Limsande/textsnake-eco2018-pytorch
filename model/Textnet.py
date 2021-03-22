@@ -105,20 +105,7 @@ class Textnet(nn.Module):
         h5 = F.relu(h5)
 
         h5_deconv = self._final_deconv(h5)
-        pseudo_predictions = self._predict(h5_deconv)
-
-        # final output manipulation: softmax on text regions and
-        # center lines, regularize sine and cosine
-        output = torch.zeros_like(pseudo_predictions)
-        output[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)  # text regions
-        output[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)  # text center lines
-
-        output[:, 4] = pseudo_predictions[:, 4]  # radii
-
-        # regularizing cosθ and sinθ so that the squared sum equals 1
-        scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
-        output[:, 5] = pseudo_predictions[:, 5] * scale  # cosine
-        output[:, 6] = pseudo_predictions[:, 6] * scale  # sine
+        output = self._predict(h5_deconv)
 
         return output
 
@@ -126,6 +113,7 @@ class Textnet(nn.Module):
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+    from utils import softmax_and_regularize
 
     means = (77.125, 69.661, 65.885)
     stds = (9.664, 8.175, 7.810)
@@ -139,5 +127,21 @@ if __name__ == '__main__':
 
     for batch, *_ in train_loader:
         output = model(batch)
-        print(output.shape)
+        print('Output shape:', output.shape)
+
+        output = softmax_and_regularize(output)
+
+        tr_pred = output[0, :2]
+        tcl_pred = output[0, 2:4]
+        radii_pred = output[0, 4]
+        cos_pred = output[0, 5]
+        sin_pred = output[0, 6]
+
+        # Two softmaxed channels of both tr_pred and tcl_pred must sum to 1.
+        assert torch.all(torch.isclose(tr_pred[0] + tr_pred[1], torch.tensor(1.)))
+        assert torch.all(torch.isclose(tcl_pred[0] + tcl_pred[1], torch.tensor(1.)))
+
+        # Squared sum of each sin_pred[i, j] and cos_pred[i, j] must be 1
+        assert torch.all(torch.isclose(cos_pred ** 2 + sin_pred ** 2, torch.tensor(1.)))
+
         break

@@ -2,6 +2,23 @@ import pathlib
 from argparse import ArgumentParser
 
 import torch
+import torch.nn.functional as F
+
+
+def softmax_and_regularize(pseudo_predictions):
+    # softmax on text regions and center lines
+    output = torch.zeros_like(pseudo_predictions)
+    output[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)  # text regions
+    output[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)  # text center lines
+
+    output[:, 4] = pseudo_predictions[:, 4]  # radii
+
+    # regularizing cosθ and sinθ so that the squared sum equals 1
+    scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
+    output[:, 5] = pseudo_predictions[:, 5] * scale  # cosine
+    output[:, 6] = pseudo_predictions[:, 6] * scale  # sine
+
+    return output
 
 
 def to_device(data, device):
