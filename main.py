@@ -4,11 +4,11 @@ from datetime import datetime
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from augmentation.augmentation import RootAugmentation, RootBaseTransform
 from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+from loss.loss import loss_fn
 from model.Textnet import Textnet
 from utils import get_device, to_device, get_args_parser
 
@@ -115,45 +115,6 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, start_epoch=0, bes
 
     total_elapsed_time = datetime.now() - start_time
     print('Total elapsed time:', format_elapsed_time(total_elapsed_time))
-
-
-def loss_fn(prediction, maps):
-    # TODO Online hard negative mining for tr_loss
-
-    tr_pred = prediction[:, :2]
-    tr_true = maps[0].float()
-    tcl_pred = prediction[:, 2:4]
-    tcl_true = maps[1].float()
-
-    # tcl_loss only takes pixels inside text region into account.
-    # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
-    # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
-    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
-    # but only with the values from tcl_pred, where tr_true is 1. Values outside
-    # the text region are 0.
-    tcl_pred_inside_tr = torch.stack(
-            [
-                torch.where(tr_true > 0, tcl_pred[:, 0], tr_true),
-                torch.where(tr_true > 0, tcl_pred[:, 1], tr_true)
-            ], dim=1)
-
-    # Geometry loss only takes pixels inside tcl into account. Use tcl_true as
-    # mask, like tr_true above. But this time, there is only one channel for
-    # radii, sine, and cosine, each. So no need to stack.
-    r_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 4], tcl_true)
-    r_true = maps[2]
-    cos_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 5], tcl_true)
-    cos_true = maps[3]
-    sin_pred_inside_tcl = torch.where(tcl_true > 0, prediction[:, 6], tcl_true)
-    sin_true = maps[4]
-
-    tr_loss = F.cross_entropy(tr_pred, tr_true.long())
-    tcl_loss = F.cross_entropy(tcl_pred_inside_tr, tcl_true.long())
-    radii_loss = F.smooth_l1_loss(r_pred_inside_tcl, r_true)
-    sin_loss = F.smooth_l1_loss(sin_pred_inside_tcl, sin_true)
-    cos_loss = F.smooth_l1_loss(cos_pred_inside_tcl, cos_true)
-
-    return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
 
 
 def make_output_dir_name():
