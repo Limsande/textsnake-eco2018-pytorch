@@ -118,7 +118,8 @@ class Textnet(nn.Module):
         # Because then in matches the format of ground truth and we do
         # not need to do this in the loss function.
         scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
-        output[:, 5:] = pseudo_predictions[:, 5:] * scale
+        output[:, 5] = pseudo_predictions[:, 5] * scale  # cosine
+        output[:, 6] = pseudo_predictions[:, 6] * scale  # sine
 
         # We do not apply softmax to tr and tcl pseudo predictions here,
         # because this is done by torch.nn.functional.cross_entropy in
