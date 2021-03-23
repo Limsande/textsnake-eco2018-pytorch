@@ -12,7 +12,7 @@ from model.functions import fit
 from utils import get_device, get_args_parser
 
 
-def make_output_dir_name():
+def make_output_dir_name(args):
     """Constructs a unique name for a directory in ./output using
     current time and script arguments"""
     prefix = datetime.now().strftime('%Y%m%d-%H%M')
@@ -25,7 +25,7 @@ def make_output_dir_name():
     return dir_name
 
 
-def print_config_file(output_dir):
+def print_config_file(output_dir, args):
     """Prints current configuration to a file in the output directory"""
     with open(os.path.join(output_dir, 'config.cfg'), 'w') as f:
         for k, v in vars(args).items():
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     args = get_args_parser().parse_args()
 
     # Create output directory if it doesn't exist
-    output_dir = make_output_dir_name()
+    output_dir = make_output_dir_name(args)
     try:
         os.makedirs(output_dir, exist_ok=True)
     except IOError as e:
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     # Write configuration to log file
     try:
-        print_config_file(output_dir)
+        print_config_file(output_dir, args)
     except IOError as e:
         sys.exit(f'[ERROR] Could not write to output directory: {e}')
 

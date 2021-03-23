@@ -23,7 +23,7 @@ if __name__ == '__main__':
     args = get_args_parser().parse_args()
 
     # Create output directory if it doesn't exist
-    output_dir = os.path.join(make_output_dir_name(), 'reproduction')
+    output_dir = os.path.join(make_output_dir_name(args), 'reproduction')
     try:
         os.makedirs(output_dir, exist_ok=True)
     except IOError as e:
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     # Write configuration to log file
     try:
-        print_config_file(output_dir)
+        print_config_file(output_dir, args)
     except IOError as e:
         sys.exit(f'[ERROR] Could not write to output directory: {e}')
 
