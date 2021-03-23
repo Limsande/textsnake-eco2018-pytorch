@@ -105,7 +105,24 @@ class Textnet(nn.Module):
         h5 = F.relu(h5)
 
         h5_deconv = self._final_deconv(h5)
-        output = self._predict(h5_deconv)
+        pseudo_predictions = self._predict(h5_deconv)
+
+        # Construct new output tensor. If we would not do this and
+        # modify the pseudo_predictions inplace in the regularization
+        # below, we would cause a RunTimeError from PyTorch during gradient
+        # computation.
+        output = torch.zeros_like(pseudo_predictions)
+        output[:, :5] = pseudo_predictions[:, :5]
+
+        # Regularizing cosθ and sinθ so that the squared sum equals 1.
+        # Because then in matches the format of ground truth and we do
+        # not need to do this in the loss function.
+        scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
+        output[:, 5:] = pseudo_predictions[:, 5:] * scale
+
+        # We do not apply softmax to tr and tcl pseudo predictions here,
+        # because this is done by torch.nn.functional.cross_entropy in
+        # the loss function.
 
         return output
 
@@ -113,7 +130,7 @@ class Textnet(nn.Module):
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
     from dataloader.Eco2018Loader import DeviceLoader, Eco2018
-    from utils import softmax_and_regularize
+    from utils import softmax
 
     means = (77.125, 69.661, 65.885)
     stds = (9.664, 8.175, 7.810)
@@ -129,7 +146,7 @@ if __name__ == '__main__':
         output = model(batch)
         print('Output shape:', output.shape)
 
-        output = softmax_and_regularize(output)
+        output = softmax(output)
 
         tr_pred = output[0, :2]
         tcl_pred = output[0, 2:4]
