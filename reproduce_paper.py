@@ -48,7 +48,6 @@ if __name__ == '__main__':
     train_loader = DeviceLoader(
         DataLoader(
             dataset,
-            shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             pin_memory=True,
