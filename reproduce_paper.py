@@ -23,7 +23,7 @@ if __name__ == '__main__':
     args = get_args_parser().parse_args()
 
     # Create output directory if it doesn't exist
-    output_dir = os.path.join(make_output_dir_name(args), 'reproduction')
+    output_dir = os.path.join('output', make_output_dir_name(args).replace('output', 'reproduction'))
     try:
         os.makedirs(output_dir, exist_ok=True)
     except IOError as e:
