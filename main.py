@@ -56,9 +56,10 @@ if __name__ == '__main__':
     train_transforms = RootAugmentation(mean=means, std=stds)
     val_transforms = RootBaseTransform(mean=means, std=stds)
 
+    train_set = Eco2018(transformations=train_transforms)
     train_loader = DeviceLoader(
         DataLoader(
-            Eco2018(transformations=train_transforms),
+            train_set,
             shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
@@ -70,6 +71,8 @@ if __name__ == '__main__':
             num_workers=args.num_workers,
             pin_memory=True)
     )
+
+    print('Iterations per epoch:', len(train_set) // args.batch_size)
 
     model = Textnet(pretrained_backbone=args.pretrained_backbone)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
