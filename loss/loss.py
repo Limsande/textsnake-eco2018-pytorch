@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -34,6 +35,10 @@ def loss_fn(prediction, maps):
     radii_loss = F.smooth_l1_loss(radii_pred_inside_tcl, radii_true)
     sin_loss = F.smooth_l1_loss(sin_pred_inside_tcl, sin_true)
     cos_loss = F.smooth_l1_loss(cos_pred_inside_tcl, cos_true)
+
+    radii_loss = radii_loss if not np.isnan(radii_loss.clone().cpu().detach().numpy()) else 0
+    cos_loss = cos_loss if not np.isnan(cos_loss.clone().cpu().detach().numpy()) else 0
+    sin_loss = sin_loss if not np.isnan(sin_loss.clone().cpu().detach().numpy()) else 0
 
     return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
 
