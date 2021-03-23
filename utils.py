@@ -1,8 +1,18 @@
+import numpy as np
 import pathlib
-from argparse import ArgumentParser
-
 import torch
 import torch.nn.functional as F
+from PIL import Image
+from argparse import ArgumentParser
+
+
+def format_elapsed_time(delta) -> str:
+    # Remove microseconds
+    return str(delta).split('.')[0]
+
+
+def load_img_as_np_array(path):
+    return np.array(Image.open(path))
 
 
 def softmax(pseudo_predictions):
