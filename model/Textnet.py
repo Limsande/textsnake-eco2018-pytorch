@@ -133,6 +133,8 @@ if __name__ == '__main__':
     from dataloader.Eco2018Loader import DeviceLoader, Eco2018
     from utils import softmax
 
+    torch.autograd.set_detect_anomaly(True)
+
     means = (77.125, 69.661, 65.885)
     stds = (9.664, 8.175, 7.810)
     from augmentation.augmentation import RootAugmentation
@@ -143,17 +145,24 @@ if __name__ == '__main__':
     train_loader = DeviceLoader(
         DataLoader(Eco2018(data_root=data_root, transformations=train_transforms), shuffle=True, batch_size=1))
 
-    for batch, *_ in train_loader:
+    optimizer = torch.optim.Adam(model.parameters(), lr=1)
+
+    for batch, *maps in train_loader:
+        model.train()
         output = model(batch)
+
+        # --------------------------------------------------------------------------------
+        # Do some sanity checks on the model output
+        # --------------------------------------------------------------------------------
         print('Output shape:', output.shape)
 
-        output = softmax(output)
+        softmaxed_output = softmax(output)
 
-        tr_pred = output[0, :2]
-        tcl_pred = output[0, 2:4]
-        radii_pred = output[0, 4]
-        cos_pred = output[0, 5]
-        sin_pred = output[0, 6]
+        tr_pred = softmaxed_output[0, :2]
+        tcl_pred = softmaxed_output[0, 2:4]
+        radii_pred = softmaxed_output[0, 4]
+        cos_pred = softmaxed_output[0, 5]
+        sin_pred = softmaxed_output[0, 6]
 
         # Two softmaxed channels of both tr_pred and tcl_pred must sum to 1.
         assert torch.all(torch.isclose(tr_pred[0] + tr_pred[1], torch.tensor(1.)))
@@ -161,5 +170,42 @@ if __name__ == '__main__':
 
         # Squared sum of each sin_pred[i, j] and cos_pred[i, j] must be 1
         assert torch.all(torch.isclose(cos_pred ** 2 + sin_pred ** 2, torch.tensor(1.)))
+
+        # --------------------------------------------------------------------------------
+        # Check if the model is learning, i.e. that the weights receive updates
+        # --------------------------------------------------------------------------------
+        from loss.loss import loss_fn
+
+        loss = loss_fn(output, maps)
+        loss.backward()
+        old_weights = [module.weight.data.clone() for module in model.modules() if hasattr(module, 'weight')]
+        optimizer.step()
+        new_modules = [module for module in model.modules() if hasattr(module, 'weight')]
+
+        grads_missing = False
+        grads_zero = False
+        for i, m in enumerate(new_modules):
+            if m.weight.grad is None:
+                grads_missing = True
+                print(f'Gradient of module {i} ({m}) is none')
+
+            if not torch.any(m.weight.grad != 0):
+                grads_zero = True
+                print(f'Gradient of module {i} ({m}) is all 0')
+
+        assert not grads_missing, 'Found weights without gradients'
+        assert not grads_zero, 'Found gradients that are all 0'
+
+        total_weights = list(map(lambda x: x.numel(), old_weights))
+        total_weights_not_updated = 0
+        for i, new_module in enumerate(new_modules):
+            weights_not_updated = torch.sum(torch.isclose(old_weights[i], new_module.weight))
+
+            if weights_not_updated > 0:
+                #print(f'Module {i} ({new_module}): {weights_not_updated}/{total_weights[i]} weights not updated')
+                total_weights_not_updated += torch.sum(weights_not_updated)
+
+        assert total_weights_not_updated < sum(total_weights),\
+            f'Nothing of the {sum(total_weights)} weights got updated'
 
         break
