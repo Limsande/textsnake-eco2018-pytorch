@@ -18,9 +18,10 @@ def load_img_as_np_array(path):
 def softmax(pseudo_predictions):
     """Apply softmax to text regions and center lines in
     pseudo_predictions[:, :2] and [:, 2:4], respectively."""
-    pseudo_predictions[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)
-    pseudo_predictions[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)
-    return pseudo_predictions
+    output = pseudo_predictions.clone()
+    output[:, :2] = F.softmax(pseudo_predictions[:, :2], dim=1)
+    output[:, 2:4] = F.softmax(pseudo_predictions[:, 2:4], dim=1)
+    return output
 
 
 def to_device(data, device):
