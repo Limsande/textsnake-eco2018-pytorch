@@ -43,6 +43,29 @@ def loss_fn(prediction, maps):
     return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
 
 
+def loss_fn2(prediction, maps):
+    """Only classification loss"""
+    # TODO Online hard negative mining for tr_loss
+
+    tr_pred = prediction[:, :2]
+    tr_true = maps[0]
+    tcl_pred = prediction[:, 2:4]
+    tcl_true = maps[1]
+
+    # tcl_loss only takes pixels inside text region into account.
+    # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
+    # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
+    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
+    # but only with the values from tcl_pred, where tr_true is 1. Values outside
+    # the text region are 0.
+    tcl_pred_inside_tr = torch.stack([tcl_pred[:, 0] * tr_true, tcl_pred[:, 1] * tr_true], dim=1)
+
+    tr_loss = F.cross_entropy(tr_pred, tr_true.long())
+    tcl_loss = F.cross_entropy(tcl_pred_inside_tr, tcl_true.long())
+
+    return tr_loss + tcl_loss
+
+
 if __name__ == '__main__':
     # The loss function should only take pixel inside the text region
     # (for tcl_loss), or inside the tcl (for geometry loss) into account.

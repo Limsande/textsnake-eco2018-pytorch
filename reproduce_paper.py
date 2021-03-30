@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from dataloader.Eco2018Loader import DeviceLoader
 from dataloader.TotalTextLoader import TotalText, Augmentation, BaseTransform
+from loss.loss import loss_fn, loss_fn2
 from main import make_output_dir_name, print_config_file
 from model.Textnet import Textnet
 from model.functions import fit
@@ -78,6 +79,11 @@ if __name__ == '__main__':
         print(f'  trained epochs: {start_epoch}')
         print(f'  best val_loss: {best_val_loss}')
 
+    if args.no_geometry_loss:
+        loss_fn = loss_fn2
+    else:
+        loss_fn = loss_fn
+
     fit(model,
         train_loader,
         val_loader,
@@ -86,4 +92,5 @@ if __name__ == '__main__':
         start_epoch=start_epoch,
         best_val_loss=best_val_loss,
         output_dir=output_dir,
-        args=args)
+        args=args,
+        loss_fn=loss_fn)

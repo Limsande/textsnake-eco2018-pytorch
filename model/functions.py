@@ -3,11 +3,10 @@ import sys
 import torch
 from datetime import datetime
 
-from loss.loss import loss_fn
 from utils import get_device, to_device, format_elapsed_time
 
 
-def for_and_backward(model, batch, maps, optimizer):
+def for_and_backward(model, batch, maps, optimizer, loss_fn):
     """Does one forward and one backward step using the given batch"""
     prediction = model(batch)
     loss = loss_fn(prediction, maps)
@@ -22,7 +21,7 @@ def for_and_backward(model, batch, maps, optimizer):
 
 
 @torch.no_grad()
-def forward(model, batch, maps):
+def forward(model, batch, maps, loss_fn):
     """Does one forward step on given batch for validation"""
     prediction = model(batch)
     loss = loss_fn(prediction, maps)
@@ -31,9 +30,9 @@ def forward(model, batch, maps):
 
 
 @torch.no_grad()
-def evaluate(model, val_loader):
+def evaluate(model, val_loader, loss_fn):
     """Calculates average loss on the validation set"""
-    results = [forward(model, batch, maps) for batch, *maps in val_loader]
+    results = [forward(model, batch, maps, loss_fn) for batch, *maps in val_loader]
     losses = [val[0] for val in results]
     batch_sizes = [val[1] for val in results]
 
@@ -43,7 +42,7 @@ def evaluate(model, val_loader):
     return avg_loss
 
 
-def fit(model, train_loader, val_loader, n_epochs, optimizer, output_dir, args, start_epoch=0, best_val_loss=np.inf):
+def fit(model, train_loader, val_loader, n_epochs, optimizer, loss_fn, output_dir, args, start_epoch=0, best_val_loss=np.inf):
     """Fits model to given data"""
 
     # Save training checkpoints here
@@ -70,7 +69,7 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, output_dir, args, 
         model.train()
         # Train one epoch
         for batch, *maps in train_loader:
-            train_loss = for_and_backward(model, batch, maps, optimizer)
+            train_loss = for_and_backward(model, batch, maps, optimizer, loss_fn=loss_fn)
 
         epoch_elapsed_time = datetime.now() - epoch_start_time
 
@@ -82,7 +81,7 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, output_dir, args, 
             # Put model into evaluation mode
             model.eval()
             # Run evaluation
-            val_loss = evaluate(model, val_loader)
+            val_loss = evaluate(model, val_loader, loss_fn=loss_fn)
 
             print(f'Epoch {epoch + 1}: Train loss={train_loss}; Val loss={val_loss};',
                   f'Time elapsed in this epoch: {format_elapsed_time(epoch_elapsed_time)}')

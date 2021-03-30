@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 
 from augmentation.augmentation import RootAugmentation, RootBaseTransform
 from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+from loss.loss import loss_fn, loss_fn2
 from model.Textnet import Textnet
 from model.functions import fit
 from utils import get_device, get_args_parser
@@ -18,6 +19,8 @@ def make_output_dir_name(args):
     prefix = datetime.now().strftime('%Y%m%d-%H%M')
     dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
     dir_name += '_with-pretrained-backbone' if args.pretrained_backbone else '_no-pretrained-backbone'
+    if args.no_geometry_loss:
+        dir_name += '_no-geometry-loss'
     if args.resume:
         # Extract date prefix from checkpoint path:
         # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
@@ -90,6 +93,11 @@ if __name__ == '__main__':
         print(f'  trained epochs: {start_epoch}')
         print(f'  best val_loss: {best_val_loss}')
 
+    if args.no_geometry_loss:
+        loss_fn = loss_fn2
+    else:
+        loss_fn = loss_fn
+
     fit(model,
         train_loader,
         val_loader,
@@ -98,4 +106,5 @@ if __name__ == '__main__':
         start_epoch=start_epoch,
         best_val_loss=best_val_loss,
         output_dir=output_dir,
-        args=args)
+        args=args,
+        loss_fn=loss_fn)

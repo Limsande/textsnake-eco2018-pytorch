@@ -87,5 +87,10 @@ def get_args_parser() -> ArgumentParser:
         action='store_true',
         help='Use as backbone a VGG16 pretrained on ImageNet from the torchvision GitHub repo'
     )
+    parser.add_argument(
+        '--no-geometry-loss',
+        action='store_true',
+        help='Ignore geometry loss during training'
+    )
 
     return parser
