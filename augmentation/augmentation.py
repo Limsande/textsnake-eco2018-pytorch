@@ -1,3 +1,7 @@
+"""
+This is a slightly adapted version of https://github.com/princewang1994/TextSnake.pytorch/blob/master/util/augmentation.py
+"""
+
 import cv2
 import math
 import numpy as np

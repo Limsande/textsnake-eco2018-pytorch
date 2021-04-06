@@ -7,7 +7,8 @@ from utils import get_device, to_device, format_elapsed_time
 
 
 def for_and_backward(model, batch, maps, optimizer, loss_fn):
-    """Does one forward and one backward step using the given batch"""
+    """Does one forward and one backward step, including weight updates, using
+    the given batch. Returns the loss."""
     prediction = model(batch)
     loss = loss_fn(prediction, maps)
     # Calculate gradients
@@ -22,7 +23,8 @@ def for_and_backward(model, batch, maps, optimizer, loss_fn):
 
 @torch.no_grad()
 def forward(model, batch, maps, loss_fn):
-    """Does one forward step on given batch for validation"""
+    """Does one forward step on given batch for validation. Returns loss and
+    size of the batch"""
     prediction = model(batch)
     loss = loss_fn(prediction, maps)
 
@@ -73,10 +75,9 @@ def fit(model, train_loader, val_loader, n_epochs, optimizer, loss_fn, output_di
 
         epoch_elapsed_time = datetime.now() - epoch_start_time
 
-        # Evaluate and persist the training progress if we hit
-        # the validation interval or if this was the last epoch,
-        # and if the current val_loss is better than the best
-        # val_loss from all prior epochs
+        # Evaluate and persist the training progress if we hit the validation
+        # interval or if this was the last epoch, and if the current val_loss is
+        # better than the best val_loss from all prior epochs
         if epoch % args.val_interval == 0 or epoch == max_epoch - 1:
             # Put model into evaluation mode
             model.eval()
