@@ -1,12 +1,12 @@
-name: eco2018-textsnake-pytorch
+name: eco2018-textsnake-pytorch-1.4
 channels:
+  - esri
   - defaults
-  - anaconda
-  - conda-forge
 dependencies:
-  - pytorch
-  - matplotlib
+  - python==3.8.5
+  - pytorch==1.4.0
   - opencv
-  - torchvision
-  - -scikit-image
-prefix: ~/.conda/envs/eco2018-textsnake-pytorch
+  - torchvision==0.5.0
+  - scikit-image
+  - scipy
+prefix: ~/miniconda3/envs/eco2018-textsnake-pytorch-1.4
