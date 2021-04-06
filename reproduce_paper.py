@@ -7,10 +7,9 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 from dataloader.Eco2018Loader import DeviceLoader
 from dataloader.TotalTextLoader import TotalText, Augmentation, BaseTransform
 from loss.loss import loss_fn, loss_fn2
-from main import make_output_dir_name, print_config_file
 from model.Textnet import Textnet
 from model.functions import fit
-from utils import get_device, get_args_parser
+from utils import get_device, get_args_parser, make_output_dir_name, print_config_file
 
 
 def create_split_indices(n: int, val_split: float) -> ([int], [int]):

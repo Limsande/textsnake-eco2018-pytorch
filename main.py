@@ -2,7 +2,6 @@ import numpy as np
 import os
 import sys
 import torch
-from datetime import datetime
 from torch.utils.data import DataLoader
 
 from augmentation.augmentation import RootAugmentation, RootBaseTransform
@@ -10,31 +9,7 @@ from dataloader.Eco2018Loader import DeviceLoader, Eco2018
 from loss.loss import loss_fn, loss_fn2
 from model.Textnet import Textnet
 from model.functions import fit
-from utils import get_device, get_args_parser
-
-
-def make_output_dir_name(args):
-    """Constructs a unique name for a directory in ./output using
-    current time and script arguments"""
-    prefix = datetime.now().strftime('%Y%m%d-%H%M')
-    dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
-    dir_name += '_with-pretrained-backbone' if args.pretrained_backbone else '_no-pretrained-backbone'
-    if args.no_geometry_loss:
-        dir_name += '_no-geometry-loss'
-    if args.resume:
-        # Extract date prefix from checkpoint path:
-        # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
-        dir_name += f'_resume={str(args.resume.parent.name).split("_")[0]}'
-    return dir_name
-
-
-def print_config_file(output_dir, args):
-    """Prints current configuration to a file in the output directory"""
-    with open(os.path.join(output_dir, 'config.cfg'), 'w') as f:
-        for k, v in vars(args).items():
-            f.write(f'{k}={v}\n')
-        f.write(f'device={get_device()}')
-
+from utils import get_device, get_args_parser, make_output_dir_name, print_config_file
 
 if __name__ == '__main__':
     args = get_args_parser().parse_args()

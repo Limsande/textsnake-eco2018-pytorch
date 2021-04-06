@@ -1,16 +1,29 @@
+"""
+Components of the FCN proposed by Long et al., which we termed Textnet. See fig.
+4 of the paper ("Network architecture").
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class VGG16Backbone(nn.Module):
+    """
+    The five convolutional and max-pooling layers of a VGG-16, serving as
+    backbone network for Textnet. These are the blue boxes in fig. 4 of the
+    paper ("Network architecture").
+    """
 
     def __init__(self, pretrained=False):
+        """
+        :param pretrained: whether to load the VGG-16 pretrained in ImageNet
+        """
         super().__init__()
 
-        # Get pretrained VGG16 from PyTorch's GitHub repo,
+        # Get (pretrained) VGG16 from PyTorch's GitHub repo,
         # see https://pytorch.org/hub/pytorch_vision_vgg/
-        vgg16 = torch.hub.load('pytorch/vision:v0.5.0', 'vgg16', pretrained=pretrained)
+        vgg16 = torch.hub.load('pytorch/vision:v0.9.0', 'vgg16', pretrained=pretrained)
 
         # Extract the five convolutional layers from vgg16 as our backbone
         self.stage1 = nn.Sequential(*[vgg16.features[i] for i in range(5)])
@@ -35,7 +48,11 @@ class VGG16Backbone(nn.Module):
 
 
 class DeconvAndMerge(nn.Module):
-    """h_i + f_{5-i} --> h_{i+1};  see eq. (1)"""
+    """
+    Up-sampling layer. Combines a deconvolutional with two convolutional layers.
+    Corresponds to a pair of green and yellow boxes in fig. 4 of the paper
+    ("Network architecture")).
+    """
 
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -43,17 +60,25 @@ class DeconvAndMerge(nn.Module):
         self._deconv = nn.ConvTranspose2d(
             in_channels=in_channels,
             out_channels=out_channels,
-            kernel_size=4,
-            stride=2,
-            padding=1
-        )
-        self._conv1x1 = nn.Conv2d(in_channels=combined_channels,
-                                  out_channels=combined_channels, kernel_size=1)
-        self._conv3x3 = nn.Conv2d(in_channels=combined_channels,
-                                  out_channels=out_channels, kernel_size=3,
-                                  padding=1)
+            kernel_size=(4, 4),
+            stride=(2, 2),
+            padding=(1, 1))
+
+        self._conv1x1 = nn.Conv2d(
+            in_channels=combined_channels,
+            out_channels=combined_channels,
+            kernel_size=(1, 1))
+
+        self._conv3x3 = nn.Conv2d(
+            in_channels=combined_channels,
+            out_channels=out_channels,
+            kernel_size=(3, 3),
+            padding=(1, 1))
 
     def forward(self, h, f):
+        """
+        h_i + f_{6-i} --> h_{i+1};  see eq. (1) and (2) of the paper
+        """
         h = self._deconv(h)
         x = torch.cat([h, f], dim=1)
         x = F.relu(self._conv1x1(x))
@@ -63,67 +88,72 @@ class DeconvAndMerge(nn.Module):
 
 
 class Textnet(nn.Module):
+    """
+    Textnet combines the backbone VGG-16 with five up-sampling layers (instances
+    of DeconvAndMerge, the feature merging network). The i-th up-sampling layer
+    receives as input the (i-1)-th up-sampling layer's output (h_{i-1}), and the
+    output of the (6-i)-th backbone convolutional layer (f_{6-i}). See fig. 4 of
+    the paper ("Network architecture"). Final output P has dimensions Nx7xHxW
+    (N: batchsize, H: input image height, W: input image width).
+    """
 
     def __init__(self, pretrained_backbone=False):
         super().__init__()
         self._backbone = VGG16Backbone(pretrained=pretrained_backbone)
         # f5=h1 and f4 have 512 channels
         self._up1 = DeconvAndMerge(in_channels=512, out_channels=256)
-        # f3 has 256 channels, and h2 has 256 channels
+        # f3 and h2 have 256 channels
         self._up2 = DeconvAndMerge(in_channels=256, out_channels=128)
-        # f2 has 128 channels, and h3 has 128 channels
+        # f2 and h3 have 128 channels
         self._up3 = DeconvAndMerge(in_channels=128, out_channels=64)
-        # f1 has 64 channels, and h4 has 64 channels
+        # f1 and h4 have 64 channels
         self._up4 = DeconvAndMerge(in_channels=64, out_channels=32)
         self._final_deconv = nn.ConvTranspose2d(
             in_channels=32,
             out_channels=16,
-            kernel_size=4,
-            stride=2,
-            padding=1
-        )
+            kernel_size=(4, 4),
+            stride=(2, 2),
+            padding=(1, 1))
         self._predict = nn.Sequential(
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3,
-                      padding=1),
-            nn.Conv2d(in_channels=16, out_channels=7, kernel_size=1)
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(3, 3), padding=(1, 1)),
+            nn.Conv2d(in_channels=16, out_channels=7, kernel_size=(1, 1))
         )
 
     def forward(self, batch):
+        """
+        Returns tensor with shape Nx7xHxW, consisting of
+            1, 2) logits for text region
+            3, 4) logits for text center line
+            5) predictions for disk radii
+            6) predictions for cosine(theta)
+            7) predictions for sine(theta)
+        Sine and cosine are regularized, such that the squared sum equals one.
+        """
         f1, f2, f3, f4, f5 = self._backbone(batch)
         h1 = f5
-
         h2 = self._up1(h1, f4)
-        h2 = F.relu(h2)
-
         h3 = self._up2(h2, f3)
-        h3 = F.relu(h3)
-
         h4 = self._up3(h3, f2)
-        h4 = F.relu(h4)
-
         h5 = self._up4(h4, f1)
-        h5 = F.relu(h5)
-
         h5_deconv = self._final_deconv(h5)
         pseudo_predictions = self._predict(h5_deconv)
 
-        # Construct new output tensor. If we would not do this and
-        # modify the pseudo_predictions inplace in the regularization
-        # below, we would cause a RunTimeError from PyTorch during gradient
-        # computation.
+        # Construct new output tensor. If we would not do this and modify the
+        # pseudo_predictions inplace in the regularization below, we would cause
+        # a RunTimeError from PyTorch during gradient computation.
         output = torch.zeros_like(pseudo_predictions)
         output[:, :5] = pseudo_predictions[:, :5]
 
-        # Regularizing cosθ and sinθ so that the squared sum equals 1.
-        # Because then in matches the format of ground truth and we do
-        # not need to do this in the loss function.
+        # Regularizing cosθ and sinθ so that the squared sum equals 1. Because
+        # then in matches the format of ground truth and we do not need to do
+        # this in the loss function.
         scale = torch.sqrt(1. / (torch.pow(pseudo_predictions[:, 5], 2) + torch.pow(pseudo_predictions[:, 6], 2)))
         output[:, 5] = pseudo_predictions[:, 5] * scale  # cosine
         output[:, 6] = pseudo_predictions[:, 6] * scale  # sine
 
-        # We do not apply softmax to tr and tcl pseudo predictions here,
-        # because this is done by torch.nn.functional.cross_entropy in
-        # the loss function.
+        # We do not apply softmax to tr and tcl pseudo predictions here, because
+        # this is done by torch.nn.functional.cross_entropy in the loss
+        # function.
 
         return output
 

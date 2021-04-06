@@ -8,9 +8,9 @@ from utils import to_device, get_device, load_img_as_np_array
 class RootDataset(data.Dataset):
     """
     Only  implements some basic preparations to put images into the neural net.
-    Any subclass has to take care of loading images and calculating all the input
-    for TextSnake, like center line, root polygons etc. as well as applying
-    augmentation.
+    Any subclass has to take care of loading images and calculating all the
+    input for TextSnake, like center line, root polygons etc. as well as
+    applying augmentation.
     """
 
     def __getitem__(self, index):
@@ -23,7 +23,8 @@ class RootDataset(data.Dataset):
         """
         Prepares meta data the network needs for training.
 
-        :param img_and_masks: dictionary with input image and one mask per TextSnake input
+        :param img_and_masks: dictionary with input image and one mask per
+            TextSnake input
         """
 
         img_height, img_width, _ = img_and_masks['img'].shape
@@ -94,9 +95,9 @@ class Eco2018(RootDataset):
     """
     Iterable to be passed into PyTorch's data.DataLoader.
 
-    This class loads the images and masks, and extracts root polygons from the binary annotation
-    mask (we must feed these into the net). Additional stuff like image type conversions etc.
-    is handled by the baseclass.
+    This class loads the images and masks, and extracts root polygons from the
+    binary annotation mask (we must feed these into the net). Additional stuff
+    like image type conversions etc. is handled by the baseclass.
 
     Input is expected to follow this structure:
 
@@ -112,8 +113,8 @@ class Eco2018(RootDataset):
                     \ training
                     \ validation
 
-    Eco2018 differs from Total-Text, because the input for TextSnake, like center lines, is already
-    present as additional image masks.
+    Eco2018 differs from Total-Text, because the input for TextSnake, like
+    center lines, is already present as additional image masks.
     """
 
     def __init__(

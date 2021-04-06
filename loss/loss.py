@@ -14,9 +14,9 @@ def loss_fn(prediction, maps):
     # tcl_loss only takes pixels inside text region into account.
     # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
     # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
-    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
-    # but only with the values from tcl_pred, where tr_true is 1. Values outside
-    # the text region are 0.
+    # construct a tensor tcl_pred_inside_tr with the same dimensions as
+    # tcl_pred, but only with the values from tcl_pred, where tr_true is 1.
+    # Values outside the text region are 0.
     tcl_pred_inside_tr = torch.stack([tcl_pred[:, 0] * tr_true, tcl_pred[:, 1] * tr_true], dim=1)
 
     # Geometry loss only takes pixels inside tcl into account. Use tcl_true as
@@ -55,9 +55,9 @@ def loss_fn2(prediction, maps):
     # tcl_loss only takes pixels inside text region into account.
     # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
     # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
-    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
-    # but only with the values from tcl_pred, where tr_true is 1. Values outside
-    # the text region are 0.
+    # construct a tensor tcl_pred_inside_tr with the same dimensions as
+    # tcl_pred, but only with the values from tcl_pred, where tr_true is 1.
+    # Values outside the text region are 0.
     tcl_pred_inside_tr = torch.stack([tcl_pred[:, 0] * tr_true, tcl_pred[:, 1] * tr_true], dim=1)
 
     tr_loss = F.cross_entropy(tr_pred, tr_true.long())
@@ -68,15 +68,15 @@ def loss_fn2(prediction, maps):
 
 if __name__ == '__main__':
     # The loss function should only take pixel inside the text region
-    # (for tcl_loss), or inside the tcl (for geometry loss) into account.
-    # We test this by first calculating the loss on random predictions and
-    # ground truth, but with true tr and tcl masks where everything is hot, i.e.
-    # all values contribute to the loss.
+    # (for tcl_loss), or inside the tcl (for geometry loss) into account. We
+    # test this by first calculating the loss on random predictions and ground
+    # truth, but with true tr and tcl masks where everything is hot, i.e. all
+    # values contribute to the loss.
     # Then, we enlarge everything with random values, except the true tr and tcl
-    # masks, which we enlarge with zeros. To correct for the changed cross entropy
-    # of tr and tcl we substract it from the loss. If the masking
-    # works properly, the added values do not contribute to the loss, i.e. the
-    # loss does not change.
+    # masks, which we enlarge with zeros. To correct for the changed cross
+    # entropy of tr and tcl we substract it from the loss. If the masking works
+    # properly, the added values do not contribute to the loss, i.e. the loss
+    # does not change.
     with torch.no_grad():
         # Make tr and tcl masks where everything is hot, i.e.
         # loss takes every predicted value into account.
