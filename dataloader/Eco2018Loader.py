@@ -1,16 +1,8 @@
-import os
-
 import numpy as np
+import os
 import torch.utils.data as data
-from PIL import Image
 
-from utils import to_device, get_device
-
-
-def pil_load_img(path):
-    image = Image.open(path)
-    image = np.array(image)
-    return image
+from utils import to_device, get_device, load_img_as_np_array
 
 
 class RootDataset(data.Dataset):
@@ -156,7 +148,7 @@ class Eco2018(RootDataset):
         image_path = os.path.join(self.image_root, image_id)
 
         # Read image data
-        image = pil_load_img(image_path)
+        image = load_img_as_np_array(image_path)
 
         # Read annotations and build a dict with them
         img_and_masks = {'img': image}
@@ -164,7 +156,7 @@ class Eco2018(RootDataset):
             annotation_id = self.annotation_lists[annotation_name][item]
             annotation_path = os.path.join(self.annotation_root,
                                            annotation_name, annotation_id)
-            img_and_masks[annotation_name] = pil_load_img(annotation_path)
+            img_and_masks[annotation_name] = load_img_as_np_array(annotation_path)
 
         # Apply augmentations to image and masks
         if self.transformations:

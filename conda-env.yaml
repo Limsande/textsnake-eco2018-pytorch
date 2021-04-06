@@ -8,4 +8,5 @@ dependencies:
   - matplotlib
   - opencv
   - torchvision
+  - -scikit-image
 prefix: ~/.conda/envs/eco2018-textsnake-pytorch

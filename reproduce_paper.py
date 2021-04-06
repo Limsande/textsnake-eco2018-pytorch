@@ -2,46 +2,29 @@ import numpy as np
 import os
 import sys
 import torch
-from datetime import datetime
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SubsetRandomSampler
 
-from augmentation.augmentation import RootAugmentation, RootBaseTransform
-from dataloader.Eco2018Loader import DeviceLoader, Eco2018
+from dataloader.Eco2018Loader import DeviceLoader
+from dataloader.TotalTextLoader import TotalText, Augmentation, BaseTransform
 from loss.loss import loss_fn, loss_fn2
+from main import make_output_dir_name, print_config_file
 from model.Textnet import Textnet
 from model.functions import fit
 from utils import get_device, get_args_parser
 
 
-def make_output_dir_name(args):
-    """Constructs a unique name for a directory in ./output using
-    current time and script arguments"""
-    prefix = datetime.now().strftime('%Y%m%d-%H%M')
-    dir_name = f'./output/{prefix}_epochs={args.epochs}_lr={args.lr}'
-    dir_name += '_with-pretrained-backbone' if args.pretrained_backbone else '_no-pretrained-backbone'
-
-    if args.no_geometry_loss:
-        dir_name += '_no-geometry-loss'
-    if args.resume:
-        # Extract date prefix from checkpoint path:
-        # e.g. 20210320-1439 in output/20210320-1439_epochs=1_lr=0.005/checkpoint.pth
-        dir_name += f'_resume={str(args.resume.parent.name).split("_")[0]}'
-    return dir_name
-
-
-def print_config_file(output_dir, args):
-    """Prints current configuration to a file in the output directory"""
-    with open(os.path.join(output_dir, 'config.cfg'), 'w') as f:
-        for k, v in vars(args).items():
-            f.write(f'{k}={v}\n')
-        f.write(f'device={get_device()}')
+def create_split_indices(n: int, val_split: float) -> ([int], [int]):
+    """Creates two random distinct sets of indices from [0,n)."""
+    n_val = int(n * val_split)
+    idx = np.random.permutation(n)
+    return idx[n_val:], idx[:n_val]
 
 
 if __name__ == '__main__':
     args = get_args_parser().parse_args()
 
     # Create output directory if it doesn't exist
-    output_dir = make_output_dir_name(args)
+    output_dir = os.path.join('output', make_output_dir_name(args).replace('./output', 'reproduction'))
     try:
         os.makedirs(output_dir, exist_ok=True)
     except IOError as e:
@@ -55,28 +38,30 @@ if __name__ == '__main__':
 
     print('Running on device:', get_device())
 
-    means = (77.125, 69.661, 65.885)
-    stds = (9.664, 8.175, 7.810)
-    train_transforms = RootAugmentation(mean=means, std=stds)
-    val_transforms = RootBaseTransform(mean=means, std=stds)
+    means = (0.485, 0.456, 0.406)
+    stds = (0.229, 0.224, 0.225)
+    train_transforms = Augmentation(size=512, mean=means, std=stds)
+    val_transforms = BaseTransform(size=512, mean=means, std=stds)
 
-    train_set = Eco2018(transformations=train_transforms)
+    dataset = TotalText(transform=train_transforms)
+    train_idx, val_idx = create_split_indices(len(dataset), val_split=0.2)
+
     train_loader = DeviceLoader(
         DataLoader(
-            train_set,
-            shuffle=True,
+            dataset,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
-            pin_memory=True)
+            pin_memory=True,
+            sampler=SubsetRandomSampler(train_idx))
+
     )
     val_loader = DeviceLoader(
         DataLoader(
-            Eco2018(transformations=val_transforms, is_training=False),
+            dataset,
             num_workers=args.num_workers,
-            pin_memory=True)
+            pin_memory=True,
+            sampler=SubsetRandomSampler(val_idx))
     )
-
-    print('Iterations per epoch:', len(train_set) // args.batch_size)
 
     model = Textnet(pretrained_backbone=args.pretrained_backbone)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -35,7 +36,34 @@ def loss_fn(prediction, maps):
     sin_loss = F.smooth_l1_loss(sin_pred_inside_tcl, sin_true)
     cos_loss = F.smooth_l1_loss(cos_pred_inside_tcl, cos_true)
 
+    radii_loss = radii_loss if not np.isnan(radii_loss.clone().cpu().detach().numpy()) else 0
+    cos_loss = cos_loss if not np.isnan(cos_loss.clone().cpu().detach().numpy()) else 0
+    sin_loss = sin_loss if not np.isnan(sin_loss.clone().cpu().detach().numpy()) else 0
+
     return tr_loss + tcl_loss + radii_loss + sin_loss + cos_loss
+
+
+def loss_fn2(prediction, maps):
+    """Only classification loss"""
+    # TODO Online hard negative mining for tr_loss
+
+    tr_pred = prediction[:, :2]
+    tr_true = maps[0]
+    tcl_pred = prediction[:, 2:4]
+    tcl_true = maps[1]
+
+    # tcl_loss only takes pixels inside text region into account.
+    # We can use tr_true (Nx512x512, 1=text region, 0=no text region) to mask
+    # the two channels of tcl_pred (Nx2x512x512) one by one. This lets us
+    # construct a tensor tcl_pred_inside_tr with the same dimensions as tcl_pred,
+    # but only with the values from tcl_pred, where tr_true is 1. Values outside
+    # the text region are 0.
+    tcl_pred_inside_tr = torch.stack([tcl_pred[:, 0] * tr_true, tcl_pred[:, 1] * tr_true], dim=1)
+
+    tr_loss = F.cross_entropy(tr_pred, tr_true.long())
+    tcl_loss = F.cross_entropy(tcl_pred_inside_tr, tcl_true.long())
+
+    return tr_loss + tcl_loss
 
 
 if __name__ == '__main__':
