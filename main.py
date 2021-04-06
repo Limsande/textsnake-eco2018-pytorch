@@ -34,7 +34,7 @@ if __name__ == '__main__':
     train_transforms = RootAugmentation(mean=means, std=stds)
     val_transforms = RootBaseTransform(mean=means, std=stds)
 
-    train_set = Eco2018(transformations=train_transforms)
+    train_set = Eco2018(data_root='/data/Eco2018-Test', transformations=train_transforms)
     train_loader = DeviceLoader(
         DataLoader(
             train_set,
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     )
     val_loader = DeviceLoader(
         DataLoader(
-            Eco2018(transformations=val_transforms, is_training=False),
+            Eco2018(data_root='/data/Eco2018-Test', transformations=val_transforms, is_training=False),
             num_workers=args.num_workers,
             pin_memory=True)
     )
