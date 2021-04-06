@@ -131,19 +131,10 @@ class Textnet(nn.Module):
         """
         f1, f2, f3, f4, f5 = self._backbone(batch)
         h1 = f5
-
         h2 = self._up1(h1, f4)
-        h2 = F.relu(h2)
-
         h3 = self._up2(h2, f3)
-        h3 = F.relu(h3)
-
         h4 = self._up3(h3, f2)
-        h4 = F.relu(h4)
-
         h5 = self._up4(h4, f1)
-        h5 = F.relu(h5)
-
         h5_deconv = self._final_deconv(h5)
         pseudo_predictions = self._predict(h5_deconv)
 
