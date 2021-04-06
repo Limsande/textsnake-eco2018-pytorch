@@ -1,5 +1,7 @@
 """
 From https://github.com/princewang1994/TextSnake.pytorch
+
+This code is under the MIT License.
 """
 import copy
 
